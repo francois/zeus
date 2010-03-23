@@ -67,8 +67,15 @@ NOTE: no code exists at the moment. These are only ideas.
 
       index :published_at
 
+      # A single argument for the block receives the Post object defined in the domain model.
+      before_create do |domain_post|
+        domain_post.created_at = Time.now.utc
+      end
+
+      # Accepting 2 arguments receives both the domain model instance, and the persistence model.
       before_save do |domain_post, zeus_post|
         zeus_post.comments_count = domain_post.comments.length
+        domain_post.updated_at = zeus_post.updated_at = Time.now.utc
       end
     end
 
