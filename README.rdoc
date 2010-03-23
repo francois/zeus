@@ -1,6 +1,89 @@
-= zeus
+= Zeus - the database abstraction library
 
-Description goes here.
+Following James Golick's http://jamesgolick.com/2010/3/14/crazy-heretical-and-awesome-the-way-i-write-rails-apps.html, I thought I could implement something similar, without too much hassle.
+
+NOTE: no code exists at the moment. These are only ideas.
+
+== Examples
+
+  # Sinatra, but Rails could use the same implementation
+  get "/posts" do
+    @posts = Zeus.posts
+    render :posts_index
+  end
+
+  get "/post/:id" do
+    @post = Zeus.posts.filter(:id => params[:id]).first
+    render :post
+  end
+
+  post "/posts" do
+    post = Post.new
+    post.title        = params[:post][:title]
+    post.body         = params[:post][:body]
+    post.published_at = Time.now.utc
+
+    Zeus.persist(post)
+  end
+
+  post "/post/:id/comments" do
+    post = Zeus.posts.filter(:id => params[:id]).first
+    comment = post.add_comment(params[:comment].merge(:ip => request.env["HTTP_REAL_IP"])
+
+    # Single DB transaction inserts both rows in the database
+    Zeus.persist(post, comment)
+  end
+
+  class Post
+    def initialize
+      @comments = []
+    end
+
+    def add_comment(attributes)
+      comment = Comment.new
+      comment.author_name  = attributes[:name]
+      comment.author_email = attributes[:email]
+      comment.body         = attributes[:body]
+      comment.author_ip    = attributes[:ip]
+      @comments << comment
+
+      comment
+    end
+  end
+
+  class Comment
+  end
+
+  post = Post.new
+  post.title = "Zeus is a new library"
+
+  Zeus.configure do |config|
+    config.model :post, :table_name => "posts" do
+      string   :title
+      text     :body
+      integer  :comments_count
+      datetime :published_at
+      datetime :created_at, :updated_at, :null => false
+
+      index :published_at
+
+      before_save do |domain_post, zeus_post|
+        zeus_post.comments_count = domain_post.comments.length
+      end
+    end
+
+    # Convention over configuration
+    config.model :comment do
+      integer  :post_id, :references => :posts
+      string   :author_name, :author_email, :author_ip
+      text     :body
+      float    :spaminess
+      datetime :approved_at
+      datetime :created_at, :null => false
+
+      index :post_id, :created_at, :approved_at
+    end
+  end
 
 == Note on Patches/Pull Requests
  
